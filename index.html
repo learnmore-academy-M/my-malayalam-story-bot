@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>മലയാളം കഥ &റീൽ ബോട്ട്</title>
+    <title>മലയാളം കഥ & റീൽ ബോട്ട്</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { font-family: 'Manjari', sans-serif; background-color: #f3f4f6; }
@@ -17,14 +17,13 @@
 <body class="flex flex-col h-screen max-w-lg mx-auto bg-gray-50">
 
     <div class="bg-indigo-600 text-white p-4 text-center font-bold text-lg shadow-md flex justify-between items-center">
-        <span> കഥ & റീൽ ബോട്ട്</span>
+        <span>📚 കഥ & റീൽ ബോട്ട്</span>
         <button onclick="toggleSettings()" class="text-sm bg-indigo-700 px-3 py-1 rounded">⚙️ Settings</button>
     </div>
 
-    <!-- Settings Panel -->
     <div id="settings" class="hidden settings-panel">
-        <h3 class="font-bold text-gray-800 mb-2"> Hugging Face Token</h3>
-        <p class="text-xs text-gray-600 mb-2">huggingface.co-ൽ നിന്ന് നിങ്ങളുടെ ടോക്ക ഇവിടെ നൽകുക (hf_ എന്ന് തുടങ്ങുന്നത്)</p>
+        <h3 class="font-bold text-gray-800 mb-2">🔑 Hugging Face Token</h3>
+        <p class="text-xs text-gray-600 mb-2">huggingface.co-ൽ നിന്ന് നിങ്ങളുടെ ടോക്കൺ ഇവിടെ നൽകുക (hf_ എന്ന് തുടങ്ങുന്നത്)</p>
         <input type="password" id="token-input" placeholder="hf_xxxxxxxxxxxxx" 
             class="w-full border border-gray-300 rounded px-3 py-2 text-sm mb-2">
         <button onclick="saveToken()" class="bg-indigo-600 text-white px-4 py-2 rounded text-sm font-bold">സേവ് ചെയ്യുക</button>
@@ -32,12 +31,12 @@
     </div>
 
     <div id="chat-box" class="flex-1 overflow-y-auto p-4 flex flex-col">
-        <div class="chat-bubble bot-msg">നമസ്കാരം! ആദ്യം മുകളിലെ ⚙️ Settings ബട്ട അമർത്തി നിങ്ങളുടെ Hugging Face ടോക്കൺ നൽകുക. ശേഷം കഥകളോ റീൽ സ്ക്രിപ്റ്റുകളോ ചോദിക്കൂ!</div>
+        <div class="chat-bubble bot-msg">നമസ്കാരം! ആദ്യം മുകളിലെ ⚙️ Settings ബട്ടൺ അമർത്തി നിങ്ങളുടെ Hugging Face ടോക്കൺ നൽകുക. ശേഷം കഥകളോ റീൽ സ്ക്രിപ്റ്റുകളോ ചോദിക്കൂ!</div>
     </div>
 
     <div class="p-4 bg-white border-t border-gray-200">
         <div class="flex gap-2">
-            <input type="text" id="user-input" placeholder="ഉദാ: പ്രണയവും സസ്പെൻസും കലർന്ന ഒരു റീൽ സ്ക്രിപ്റ്റ്..." 
+            <input type="text" id="user-input" placeholder="ഉദാ: പ്രണയവും സസ്പെൻസും കലർന്ന ഒരു ീൽ സ്ക്രിപ്റ്റ്..." 
                 class="flex-1 border border-gray-300 rounded-full px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
             <button onclick="sendMessage()" id="send-btn" class="bg-indigo-600 text-white rounded-full px-5 py-3 font-bold hover:bg-indigo-700 transition">
                 ➤
@@ -46,12 +45,18 @@
     </div>
 
     <script>
-        const MODEL_URL = "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2";
+        // കൂടുതൽ നല്ല മോഡലുകൾ - ്രീ ടിയറിൽ നന്നായി പ്രവർത്തിക്കുന്നവ
+        const MODELS = [
+            "HuggingFaceH4/zephyr-7b-beta",
+            "mistralai/Mistral-7B-Instruct-v0.3",
+            "google/gemma-2-2b-it"
+        ];
+        let currentModelIndex = 0;
+
         const chatBox = document.getElementById('chat-box');
         const userInput = document.getElementById('user-input');
         const sendBtn = document.getElementById('send-btn');
 
-        // Load token from localStorage
         function getToken() {
             return localStorage.getItem('hf_token');
         }
@@ -78,10 +83,31 @@
             }
         }
 
+        async function tryModel(token, prompt, modelUrl) {
+            const response = await fetch(modelUrl, {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${token}`,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    inputs: prompt,
+                    parameters: { max_new_tokens: 500, temperature: 0.7, return_full_text: false }
+                })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.text();
+                throw new Error(`HTTP ${response.status}: ${errorData}`);
+            }
+
+            return await response.json();
+        }
+
         async function sendMessage() {
             const token = getToken();
             if (!token) {
-                alert('ആദ്യം ️ Settings-ൽ പോയി Hugging Face ടോക്കൺ നൽകുക!');
+                alert('ആദ്യം ⚙️ Settings-ൽ പോയി Hugging Face ടോക്കൺ നൽകുക!');
                 return;
             }
 
@@ -92,35 +118,40 @@
             userInput.value = '';
             sendBtn.disabled = true;
             
-            const typingId = appendMessage('എഴുതിക്കൊണ്ടിരിക്കുന്നു...', 'bot-msg typing');
+            const typingId = appendMessage('🤖 എഴുതിക്കൊണ്ടിരിക്കുന്നു... (ഇതിന് 10-30 സെക്കൻഡ് എടുത്തേക്കാം)', 'bot-msg typing');
 
             try {
                 const prompt = `<s>[INST] You are an expert Malayalam story writer and Instagram Reel script creator. You have deep knowledge of world literature. Always respond ONLY in Malayalam. Make the output creative, engaging, and perfectly formatted for reading or reels. 
                 User request: ${text} [/INST]`;
 
-                const response = await fetch(MODEL_URL, {
-                    method: "POST",
-                    headers: {
-                        "Authorization": `Bearer ${token}`,
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify({
-                        inputs: prompt,
-                        parameters: { max_new_tokens: 500, temperature: 0.7, return_full_text: false }
-                    })
-                });
+                let result = null;
+                let lastError = null;
 
-                const result = await response.json();
+                // ഓരോ മോഡലും ശ്രമിക്കുക
+                for (let i = 0; i < MODELS.length; i++) {
+                    const modelUrl = `https://api-inference.huggingface.co/models/${MODELS[i]}`;
+                    try {
+                        result = await tryModel(token, prompt, modelUrl);
+                        break;
+                    } catch (err) {
+                        lastError = err.message;
+                        console.log(`Model ${MODELS[i]} failed: ${err.message}`);
+                        continue;
+                    }
+                }
+
                 document.getElementById(typingId).remove();
 
-                if (result.error) {
-                    appendMessage("മാപ്പ്, എന്തോ പിശക് സംഭവിച്ചു. കുറച്ചു കഴിഞ്ഞ് വീണ്ടും ശ്രമിക്കൂ.", 'bot-msg');
-                } else {
+                if (result && result[0] && result[0].generated_text) {
                     appendMessage(result[0].generated_text, 'bot-msg');
+                } else if (lastError) {
+                    appendMessage(`❌ പിശക്: ${lastError}\n\nപരിഹാരം:\n1. ടോക്കൺ ശരിയാണോ എന്ന് നോക്കുക\n2. കുറച്ചു സമയം കഴിഞ്ഞ് വീണ്ടും ശ്രമിക്കുക\n3. huggingface.co-ൽ പോയി ോക്കൺ regenerate ചെയ്യുക`, 'bot-msg');
+                } else {
+                    appendMessage("മാപ്പ്, എന്തോ പിശക് സംഭവിച്ചു. കുറച്ചു കഴിഞ്ഞ് വീണ്ടും ശ്രമിക്കൂ.", 'bot-msg');
                 }
             } catch (error) {
                 document.getElementById(typingId).remove();
-                appendMessage("നെറ്റ്‌വർക്ക് പിശക്. വീണ്ടും ശ്രമിക്കൂ.", 'bot-msg');
+                appendMessage(`❌ നെറ്റ്‌വർക്ക് പിശക്: ${error.message}`, 'bot-msg');
             }
             
             sendBtn.disabled = false;
