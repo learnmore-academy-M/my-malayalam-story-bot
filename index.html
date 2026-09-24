@@ -105,72 +105,58 @@
         }
 
         async function sendMessage() {
-            const token = getToken();
-            if (!token) {
-                alert('ആദ്യം ⚙️ Settings-ൽ പോയി Hugging Face ടോക്കൺ നൽകുക!');
-                return;
-            }
+    const token = getToken();
+    if (!token) {
+        alert('ആദ്യം ⚙️ Settings-ൽ പോയി Hugging Face ടോക്കൺ നൽകുക!');
+        return;
+    }
 
-            const text = userInput.value.trim();
-            if (!text) return;
+    const text = userInput.value.trim();
+    if (!text) return;
 
-            appendMessage(text, 'user-msg');
-            userInput.value = '';
-            sendBtn.disabled = true;
-            
-            const typingId = appendMessage('🤖 എഴുതിക്കൊണ്ടിരിക്കുന്നു... (ഇതിന് 10-30 സെക്കൻഡ് എടുത്തേക്കാം)', 'bot-msg typing');
+    appendMessage(text, 'user-msg');
+    userInput.value = '';
+    sendBtn.disabled = true;
+    
+    const typingId = appendMessage('🤖 എഴുതിക്കൊണ്ടിരിക്കുന്നു...', 'bot-msg typing');
 
-            try {
-                const prompt = `<s>[INST] You are an expert Malayalam story writer and Instagram Reel script creator. You have deep knowledge of world literature. Always respond ONLY in Malayalam. Make the output creative, engaging, and perfectly formatted for reading or reels. 
-                User request: ${text} [/INST]`;
-
-                let result = null;
-                let lastError = null;
-
-                // ഓരോ മോഡലും ശ്രമിക്കുക
-                for (let i = 0; i < MODELS.length; i++) {
-                    const modelUrl = `https://api-inference.huggingface.co/models/${MODELS[i]}`;
-                    try {
-                        result = await tryModel(token, prompt, modelUrl);
-                        break;
-                    } catch (err) {
-                        lastError = err.message;
-                        console.log(`Model ${MODELS[i]} failed: ${err.message}`);
-                        continue;
-                    }
-                }
-
-                document.getElementById(typingId).remove();
-
-                if (result && result[0] && result[0].generated_text) {
-                    appendMessage(result[0].generated_text, 'bot-msg');
-                } else if (lastError) {
-                    appendMessage(`❌ പിശക്: ${lastError}\n\nപരിഹാരം:\n1. ടോക്കൺ ശരിയാണോ എന്ന് നോക്കുക\n2. കുറച്ചു സമയം കഴിഞ്ഞ് വീണ്ടും ശ്രമിക്കുക\n3. huggingface.co-ൽ പോയി ോക്കൺ regenerate ചെയ്യുക`, 'bot-msg');
-                } else {
-                    appendMessage("മാപ്പ്, എന്തോ പിശക് സംഭവിച്ചു. കുറച്ചു കഴിഞ്ഞ് വീണ്ടും ശ്രമിക്കൂ.", 'bot-msg');
-                }
-            } catch (error) {
-                document.getElementById(typingId).remove();
-                appendMessage(`❌ നെറ്റ്‌വർക്ക് പിശക്: ${error.message}`, 'bot-msg');
-            }
-            
-            sendBtn.disabled = false;
-        }
-
-        function appendMessage(text, className) {
-            const div = document.createElement('div');
-            const id = 'msg-' + Date.now();
-            div.id = id;
-            div.className = `chat-bubble ${className}`;
-            div.innerText = text;
-            chatBox.appendChild(div);
-            chatBox.scrollTop = chatBox.scrollHeight;
-            return id;
-        }
-
-        userInput.addEventListener("keypress", function(event) {
-            if (event.key === "Enter") sendMessage();
+    try {
+        // പുതിയ Hugging Face Inference Providers endpoint
+        const response = await fetch("https://router.huggingface.co/v1/inference-providers/together/chat/completions", {
+            method: "POST",
+            headers: {
+                "Authorization": `Bearer ${token}`,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                model: "mistralai/Mistral-7B-Instruct-v0.3",
+                messages: [
+                    { 
+                        role: "system", 
+                        content: "നീ ഒരു വിദഗ്ധ മലയാളം കഥാകൃത്തും ഇൻസ്റ്റാഗ്രാം റീൽ സ്ക്രിപ്റ്റ് എഴുത്തുകാരനുമാണ്. ലോകസാഹിത്യത്തിലെ എല്ലാ കഥകളും കവിതകളും നിനക്ക് അറിയാം. എപ്പോഴും മലയാളത്തിൽ മാത്രം മറുപടി നൽകുക. സർഗ്ഗാത്മകവും ആകർഷകവുമായ ഉള്ളടക്കം നൽകുക." 
+                    },
+                    { role: "user", content: text }
+                ],
+                max_tokens: 1000,
+                temperature: 0.7
+            })
         });
-    </script>
-</body>
-</html>
+
+        const result = await response.json();
+        document.getElementById(typingId).remove();
+
+        if (result.error) {
+            appendMessage(`❌ പിശക്: ${result.error.message || 'അജ്ഞാത പിശക്'}`, 'bot-msg');
+        } else if (result.choices && result.choices[0] && result.choices[0].message) {
+            const reply = result.choices[0].message.content;
+            appendMessage(reply, 'bot-msg');
+        } else {
+            appendMessage("മാപ്പ്, എന്തോ പിശക് സംഭവിച്ചു. വീണ്ടും ശ്രമിക്കൂ.", 'bot-msg');
+        }
+    } catch (error) {
+        document.getElementById(typingId).remove();
+        appendMessage(`❌ പിശക്: ${error.message}`, 'bot-msg');
+    }
+    
+    sendBtn.disabled = false;
+}
